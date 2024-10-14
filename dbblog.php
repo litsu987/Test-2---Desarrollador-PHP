@@ -491,8 +491,13 @@ class Dbblog extends Module
         // Customer
         $customer_login = $this->context->customer->isLogged();
         $customer_name = '';
-        if($customer_login){
-            $customer_name = $this->context->customer->firstname.' '.$this->context->customer->lastname;
+        
+        if ($customer_login) {
+            if (Tools::strlen($this->context->customer->firstname) <= 512 && Tools::strlen($this->context->customer->lastname) <= 512) {
+                $customer_name = $this->context->customer->firstname . ' ' . $this->context->customer->lastname;
+            } else {
+                $customer_name = 'Nombre o apellido demasiado largo';
+            }
         }
 
         $link = new Link();
