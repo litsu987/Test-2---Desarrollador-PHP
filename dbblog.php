@@ -533,38 +533,67 @@ class Dbblog extends Module
         return $desc;
     }
 
-    public function getProductSC($id_product)
-    {
-        $product = new Product($id_product, null, $this->context->language->id);
-        if(!empty($product->link_rewrite) && $product->link_rewrite != '') {
-            $product = array(
-                'id_product' => $id_product,
-            );
-            $assembler = new ProductAssembler($this->context);
+public function getProductSC($id_product)
+{
+    $product = new Product($id_product, null, $this->context->language->id);
+    
+    // Obtener productos relacionados manualmente
+    $productos_relacionados_manual = $this->getManualRelatedProducts($id_product);
 
-            $presenterFactory = new ProductPresenterFactory($this->context);
-            $presentationSettings = $presenterFactory->getPresentationSettings();
-            $presenter = new ProductListingPresenter(
-                new ImageRetriever(
-                    $this->context->link
-                ),
-                $this->context->link,
-                new PriceFormatter(),
-                new ProductColorsRetriever(),
-                $this->context->getTranslator()
-            );
+    if (!empty($product->link_rewrite) && $product->link_rewrite != '') {
+        $productData = array(
+            'id_product' => $id_product,
+        );
 
-            $product_for_template = $presenter->present(
-                $presentationSettings,
-                $assembler->assembleProduct($product),
-                $this->context->language
-            );
+        $assembler = new ProductAssembler($this->context);
+        $presenterFactory = new ProductPresenterFactory($this->context);
+        $presentationSettings = $presenterFactory->getPresentationSettings();
+        $presenter = new ProductListingPresenter(
+            new ImageRetriever($this->context->link),
+            $this->context->link,
+            new PriceFormatter(),
+            new ProductColorsRetriever(),
+            $this->context->getTranslator()
+        );
 
-            return $product_for_template;
+        // Aquí verificamos si hay productos relacionados manualmente
+        if (!empty($productos_relacionados_manual)) {
+            $products_for_template = [];
+            foreach ($productos_relacionados_manual as $related_product_id) {
+                $related_product = new Product($related_product_id, null, $this->context->language->id);
+                if ($related_product->link_rewrite) {
+                    $products_for_template[] = $presenter->present(
+                        $presentationSettings,
+                        $assembler->assembleProduct($related_product),
+                        $this->context->language
+                    );
+                }
+            }
+            return $products_for_template; // Devuelve los productos relacionados manualmente
         }
 
-        return;
+        // Si no hay productos relacionados, sigue la lógica actual
+        $product_for_template = $presenter->present(
+            $presentationSettings,
+            $assembler->assembleProduct($productData),
+            $this->context->language
+        );
+
+        return $product_for_template;
     }
+
+    return;
+}
+
+// Nueva función para obtener productos relacionados manualmente
+private function getManualRelatedProducts($id_product)
+{
+    $sql = 'SELECT productos_relacionados FROM ' . _DB_PREFIX_ . 'productos WHERE id_product = ' . (int)$id_product;
+    $result = Db::getInstance()->getValue($sql);
+    
+    return $result ? json_decode($result, true) : []; // Devuelve un array de IDs o vacío
+}
+
 
     public function getProductsSC($id_category = null, $orderby = null, $way = null, $num = null)
     {
